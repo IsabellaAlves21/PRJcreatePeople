@@ -1,34 +1,46 @@
 <?php
-header('Content-Type: application/json');
-require ('database.php'); // Inclua aqui a sua conexão com o banco de dados
  
-// Consulta para buscar todas as pessoas
-$query = "SELECT id, nome, endereco FROM pessoas";
+require('database.php');
  
-// Executar a consulta
-$result = $conn->query($query);
+// O resto do seu código para lidar com a requisição
+$metodo = strtoupper($_SERVER['REQUEST_METHOD']);
  
-// Verificar se a consulta foi bem-sucedida
-if ($result === false) {
-    echo json_encode(['error' => 'Erro na consulta: ' . $conn->error]);
-    http_response_code(500);
-    exit;
+if ($metodo === 'GET') {
+ 
+    // Obter o ID da requisição GET
+    $idPessoa = $_GET['id'] ?? null;
+ 
+    // Validar e sanitizar o ID
+    $idPessoa = filter_var($idPessoa, FILTER_VALIDATE_INT);
+ 
+    if ($idPessoa) {
+        // Preparar a consulta para selecionar um registro específico
+        $sql = $pdo->prepare("SELECT id, nome, endereco FROM pessoas WHERE id = :id");
+        $sql->bindParam(':id', $idPessoa, PDO::PARAM_INT);
+        $sql->execute();
+ 
+        // Buscar o resultado
+        $result = $sql->fetch(PDO::FETCH_ASSOC);
+ 
+        if ($result) {
+            // Retornar o resultado como JSON
+            echo json_encode($result, JSON_UNESCAPED_UNICODE);
+        } else {
+            // ID não encontrado
+            echo json_encode(['error' => 'Registro não encontrado'], JSON_UNESCAPED_UNICODE);
+            http_response_code(404);
+        }
+    } else {
+        // ID inválido
+        echo json_encode(['error' => 'ID inválido'], JSON_UNESCAPED_UNICODE);
+        http_response_code(400);
+    }
+ 
+} else {
+    // Método não permitido
+    echo json_encode(['error' => 'Método não permitido. Utilize GET.'], JSON_UNESCAPED_UNICODE);
+    http_response_code(405);
 }
- 
-// Array para armazenar os resultados
-$people = [];
- 
-// Processar o resultado da consulta
-while ($row = $result->fetch_assoc()) {
-    $people[] = $row;
-}
- 
-// Retornar os dados em formato JSON
-echo json_encode($people);
- 
-// Liberar o resultado e fechar a conexão
-$result->free();
-$conn->close();
  
 // Incluir o arquivo de retorno (se necessário)
 require('return.php');
