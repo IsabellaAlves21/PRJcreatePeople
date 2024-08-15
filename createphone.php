@@ -14,11 +14,11 @@ if ($metodo === 'POST') {
     $telefone = filter_input(INPUT_POST, 'telefone', FILTER_SANITIZE_STRING);
  
     // Verificar se todos os dados necessários estão presentes
-    if ($idPessoa !== null && $ddi !== null && $ddd !== null && $telefone !== null) {
+    if ($idPessoa && $ddi && $ddd && $telefone) {
  
         // Preparar e executar a consulta SQL
-        $query = "INSERT INTO telefones (id_pessoa, ddi, ddd, telefone) VALUES (?, ?, ?, ?)";
-        $stmt = $conn->prepare($query);
+        $query = "INSERT INTO telefones (id_pessoa, ddi, ddd, telefone) VALUES (:id_pessoa, :ddi, :ddd, :telefone)";
+        $stmt = $pdo->prepare($query); // Use $pdo em vez de $sql
  
         if ($stmt === false) {
             echo json_encode(['error' => 'Erro ao preparar a consulta']);
@@ -26,7 +26,11 @@ if ($metodo === 'POST') {
             exit;
         }
  
-        $stmt->bind_param('iiss', $idPessoa, $ddi, $ddd, $telefone);
+        // Bind os parâmetros
+        $stmt->bindValue(':id_pessoa', $idPessoa);
+        $stmt->bindValue(':ddi', $ddi);
+        $stmt->bindValue(':ddd', $ddd);
+        $stmt->bindValue(':telefone', $telefone);
  
         if ($stmt->execute()) {
             // Retornar resposta JSON com sucesso
@@ -37,21 +41,20 @@ if ($metodo === 'POST') {
             http_response_code(500);
         }
  
-        $stmt->close();
+        $stmt->closeCursor(); // Se estiver usando PDO, use closeCursor()
+ 
     } else {
-        // Retornar resposta JSON com erro se dados estiverem faltando
-        echo json_encode(['error' => 'Dados insuficientes']);
+        $array = ['error' => 'Erro: Dados insuficientes'];
         http_response_code(400);
     }
  
 } else {
-    // Retornar resposta JSON com erro se o método não for POST
-    echo json_encode(['error' => "Método inválido - apenas POST é permitido"]);
+    $array = ['error' => "Erro: Ação inválida - método permitido apenas POST"];
     http_response_code(405);
 }
- 
 // Fechar a conexão com o banco de dados
-$conn->close();
+// Fechar a conexão não é necessário com PDO, mas se estiver usando MySQLi:
+// $conn->close();
  
 require('return.php');
  

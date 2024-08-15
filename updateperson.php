@@ -1,4 +1,3 @@
-[17:20] GUSTAVO DUARTE DOS SANTOS
 <?php
 require('./database.php');
  
@@ -39,5 +38,3 @@ if ($metodo === 'PUT') {
 }
  
 require('./return.php');
- 
- 

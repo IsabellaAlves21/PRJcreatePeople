@@ -42,4 +42,3 @@ if ($metodo === 'POST') {
 // Incluir o arquivo de retorno (se necessário)
 require('return.php');
 ?>
- 

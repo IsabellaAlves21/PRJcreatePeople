@@ -1,3 +1,4 @@
+[15:28] GUSTAVO DUARTE DOS SANTOS
 <?php
 require ('database.php'); // Inclua aqui a sua conexão com o banco de dados
  
@@ -41,3 +42,4 @@ if ($id && $ddi && $ddd && $telefone) {
 }
 require('return.php');
 ?>
+ 

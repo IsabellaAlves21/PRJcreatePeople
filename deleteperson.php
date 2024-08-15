@@ -1,83 +1,70 @@
-
 <?php
 header('Content-Type: application/json');
+header('Access-Control-Allow-Origin: *'); // Permite todos os domínios, substitua '*' pelo domínio específico se necessário
+header('Access-Control-Allow-Methods: POST, GET, OPTIONS, DELETE, PUT'); // Métodos HTTP permitidos
+header('Access-Control-Allow-Headers: Content-Type, Authorization'); // Cabeçalhos permitidos
+ 
 require('database.php'); // Inclua aqui a sua conexão com o banco de dados
  
 $metodo = strtoupper($_SERVER['REQUEST_METHOD']);
  
 if ($metodo === 'DELETE') {
- 
     // Ler e processar os dados da requisição
     parse_str(file_get_contents("php://input"), $delete);
  
-    $idPessoa = $delete['idPessoa'] ?? null;
- 
-    // Para proteger o id de inserções não numéricas
+    $idPessoa = $delete['id_pessoa'] ?? null;
     $idPessoa = filter_var($idPessoa, FILTER_VALIDATE_INT);
+ 
+    // ID fixo para teste, remova isso e use a linha acima para ID dinâmico
+    //$idPessoa = 4;
  
     // Verificar se o ID é válido e se existe na tabela de pessoas
     if ($idPessoa) {
-        // Verificar se a pessoa existe
-        $sql = $conn->prepare("SELECT * FROM pessoas WHERE id = ?");
-        $sql->bind_param('i', $idPessoa);
-        $sql->execute();
-        $result = $sql->get_result();
+        try {
+            // Preparar a consulta para verificar se a pessoa existe
+            $sql = $pdo->prepare("SELECT * FROM pessoas WHERE id = :id");
+            $sql->bindParam(':id', $idPessoa, PDO::PARAM_INT);
+            $sql->execute();
+           
+            if ($sql->rowCount() > 0) {
+                // Iniciar transação para garantir a integridade dos dados
+                $pdo->beginTransaction();
  
-        if ($result->num_rows > 0) {
+                try {
+                    // Excluir telefones relacionados
+                    $query = "DELETE FROM telefones WHERE id_pessoa = :id";
+                    $stmt = $pdo->prepare($query);
+                    $stmt->bindParam(':id', $idPessoa, PDO::PARAM_INT);
+                    $stmt->execute();
  
-            // Iniciar transação para garantir a integridade dos dados
-            $conn->begin_transaction();
+                    // Excluir a pessoa
+                    $query = "DELETE FROM pessoas WHERE id = :id";
+                    $stmt = $pdo->prepare($query);
+                    $stmt->bindParam(':id', $idPessoa, PDO::PARAM_INT);
+                    $stmt->execute();
  
-            try {
-                // Primeiro, excluímos os telefones relacionados
-                $query = "DELETE FROM telefones WHERE id_pessoa = ?";
-                $stmt = $conn->prepare($query);
-                if (!$stmt) {
-                    throw new Exception('Erro ao preparar a consulta de exclusão de telefones');
+                    // Confirmar a transação
+                    $pdo->commit();
+                    $array['result'] = 'Pessoa e telefones excluídos com sucesso!';
+                } catch (Exception $e) {
+                    // Reverter a transação em caso de erro
+                    $pdo->rollback();
+                    $array['error'] = $e->getMessage();
                 }
-                $stmt->bind_param('i', $idPessoa);
-                if (!$stmt->execute()) {
-                    throw new Exception('Erro ao excluir telefones');
-                }
-                $stmt->close();
- 
-                // Depois, excluímos a pessoa
-                $query = "DELETE FROM pessoas WHERE id = ?";
-                $stmt = $conn->prepare($query);
-                if (!$stmt) {
-                    throw new Exception('Erro ao preparar a consulta de exclusão da pessoa');
-                }
-                $stmt->bind_param('i', $idPessoa);
-                if (!$stmt->execute()) {
-                    throw new Exception('Erro ao excluir a pessoa');
-                }
-                $stmt->close();
- 
-                // Confirmar a transação
-                $conn->commit();
-                $array['result'] = 'Pessoa e telefones excluídos com sucesso!';
-            } catch (Exception $e) {
-                // Reverter a transação em caso de erro
-                $conn->rollback();
-                $array['error'] = $e->getMessage();
+            } else {
+                $array['error'] = "Erro: ID inexistente!";
             }
- 
-        } else {
-            $array['error'] = "Erro: ID inexistente!";
+        } catch (Exception $e) {
+            $array['error'] = "Erro ao executar a consulta: " . $e->getMessage();
         }
     } else {
         $array['error'] = "Erro: ID inválido";
     }
- 
 } else {
     $array['error'] = "Erro: Ação inválida - método permitido apenas DELETE";
 }
  
-// Fechar a conexão com o banco de dados
-$conn->close();
- 
-// Incluir o arquivo de retorno
-require('return.php');
- 
+// Retornar a resposta como JSON
+echo json_encode($array, JSON_UNESCAPED_UNICODE);
 ?>
  
